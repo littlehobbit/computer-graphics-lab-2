@@ -7,17 +7,28 @@
 
 struct PixelReader {
   PixelReader(std::ifstream &stream, uint8_t bits_per_pixel)
-      : stream(stream), pixel_mask(~(0x1 << bits_per_pixel)) {}
+      : stream(stream), pixel_mask(~(0x1 << bits_per_pixel)),
+        bits_per_pixel(bits_per_pixel) {}
 
   uint8_t read() {
     if (total_bits_readed % 8 == 0) {
       // read new byte
+      stream >> total_byte;
+      byte_end += 8;
+    }
+
+    if (total_bits_readed + bits_per_pixel > byte_end) {
+
+    } else {
+      auto shift = 8 - (total_bits_readed + bits_per_pixel) % 8;
     }
   }
 
   std::ifstream &stream;
   uint8_t total_byte = 0;
   uint8_t pixel_mask = 0;
+  uint8_t bits_per_pixel = 0;
+  uint8_t byte_end = 8;
   uint8_t total_bits_readed = 0;
 };
 
@@ -61,4 +72,6 @@ Image read_image(const std::string &path) {
     std::reverse(row.begin(), row.end());
     pixels.push_back(std::move(row));
   }
+
+  return {.header = header, .pixels = std::move(pixels)};
 }
