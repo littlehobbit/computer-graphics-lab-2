@@ -7,6 +7,10 @@
 #include <vector>
 
 struct ARGBColor {
+  ARGBColor() = default;
+  ARGBColor(uint8_t a, uint8_t r, uint8_t g, uint8_t b)
+      : alpha(a), red(r), green(g), blue(b) {}
+
   uint8_t alpha;
   uint8_t red;
   uint8_t green;
@@ -25,7 +29,8 @@ struct ImageHeader {
 };
 
 struct Image {
-  ImageHeader header;
+  size_t width;
+  size_t height;
   Pixels pixels;
 };
 

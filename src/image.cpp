@@ -1,36 +1,10 @@
 #include "image.h"
 
 #include <algorithm>
+#include <array>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
-
-struct PixelReader {
-  PixelReader(std::ifstream &stream, uint8_t bits_per_pixel)
-      : stream(stream), pixel_mask(~(0x1 << bits_per_pixel)),
-        bits_per_pixel(bits_per_pixel) {}
-
-  uint8_t read() {
-    if (total_bits_readed % 8 == 0) {
-      // read new byte
-      stream >> total_byte;
-      byte_end += 8;
-    }
-
-    if (total_bits_readed + bits_per_pixel > byte_end) {
-
-    } else {
-      auto shift = 8 - (total_bits_readed + bits_per_pixel) % 8;
-    }
-  }
-
-  std::ifstream &stream;
-  uint8_t total_byte = 0;
-  uint8_t pixel_mask = 0;
-  uint8_t bits_per_pixel = 0;
-  uint8_t byte_end = 8;
-  uint8_t total_bits_readed = 0;
-};
 
 const ARGBColor NO_COLOR = {0, 0, 0, 0};
 
@@ -43,16 +17,24 @@ Image read_image(const std::string &path) {
 
   // read header
   ImageHeader header;
-  in_file >> header.width >> header.height >> header.bits_per_pixel >>
-      header.palette_size;
 
-  // TODO: check pixel size < 4bit
+  in_file.read((char *)(&header.width), sizeof(uint16_t));
+  in_file.read((char *)(&header.height), sizeof(uint16_t));
+  in_file.read((char *)(&header.bits_per_pixel), sizeof(uint8_t));
+  in_file.read((char *)(&header.palette_size), sizeof(uint16_t));
+
+  std::cout << "width = " << header.width << " height = " << header.height
+            << " bpp = " << (int)header.bits_per_pixel
+            << " p size = " << header.palette_size << std::endl;
+
+  // TODO: little-big
 
   // read palette
   Palette palette;
   for (int i = 0; i < header.palette_size; i++) {
     ARGBColor color;
     in_file >> color.alpha >> color.red >> color.green >> color.blue;
+    palette.push_back(color);
   }
 
   Pixels pixels;
@@ -62,16 +44,38 @@ Image read_image(const std::string &path) {
 
     //
     for (int x = 0; x < header.width; x++) {
-      // variant 3
-      // if (byte & 0x80) {
-      // do index pixel
-      // } else {
-      // do color pixel
-      // }
+      uint8_t byte;
+      in_file.read((char*)&byte, 1);
+
+      if (byte & 0x80) {
+        auto index = byte & 0x7F;
+
+        if (index > palette.size()) {
+          throw std::runtime_error("Pixel index is out from range");
+        }
+
+        row.push_back(palette[index - 1]);
+      } else {
+        /* byte
+           |01101010|
+           |-regrebl|
+        */
+        uint8_t red = (byte >> 5) & 0x3;
+        uint8_t green = (byte >> 2) & 0x7;
+        uint8_t blue = byte & 0x3;
+
+        const uint8_t multiplier_2b = 256 / 4;
+        const uint8_t multiplier_3b = 256 / 8;
+
+        row.emplace_back(0xff, red * multiplier_2b, green * multiplier_3b,
+                         blue * multiplier_2b);
+      }
     }
     std::reverse(row.begin(), row.end());
     pixels.push_back(std::move(row));
   }
 
-  return {.header = header, .pixels = std::move(pixels)};
+  return {.width = header.width,
+          .height = header.height,
+          .pixels = std::move(pixels)};
 }
