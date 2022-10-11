@@ -64,8 +64,8 @@ Image read_image(const std::string &path) {
         uint8_t green = (byte >> 2) & 0x7;
         uint8_t blue = byte & 0x3;
 
-        const uint8_t multiplier_2b = 256 / 4;
-        const uint8_t multiplier_3b = 256 / 8;
+        const uint8_t multiplier_2b = 255 / 3;
+        const uint8_t multiplier_3b = 255 / 7;
 
         row.emplace_back(0xff, red * multiplier_2b, green * multiplier_3b,
                          blue * multiplier_2b);
